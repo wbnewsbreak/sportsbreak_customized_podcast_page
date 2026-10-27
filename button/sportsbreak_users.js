@@ -93160,7 +93160,7 @@ window.FIREBASE_UID_TO_LEAGUES = {
     "nfl"
   ],
   "AfmidqRc3aU9gcOp2VKFL8xfzIB2": [
-    "nfl"
+    "nfl", "mlb"
   ],
   "XsXIgGzFe8afm54pMlMkyb4LRcl1": [
     "nfl"
