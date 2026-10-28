@@ -27,7 +27,7 @@ def main():
         print("Processing {}...".format(league.upper()), flush=True)
         try:
             audio = generate_audio_for_league(league)
-            url = upload_mp3(audio, league, episode_date=date(2026, 10, 27))
+            url = upload_mp3(audio, league)  # in case of needing to regenerate prev day, episode_date=date(2026, 10, 27))
         except (
             AccountAPIError,
             AuthenticationError,
