@@ -7,25 +7,20 @@ embedding in a WKWebView iframe in an iOS app. Keep the interface compact: a
 single Play button that changes to Pause during playback, with a small status
 area for errors.
 
-Open `index.html` directly for local testing. The league mapping is a local
-script, not a network request, so the page can read it without fetching a JSON
-file. In `index.html`, load `sportsbreak_users.js` before `app.js`; the mapping
-script assigns `window.FIREBASE_UID_TO_LEAGUES`.
+Open `index.html` directly for local testing. The player reads the favorite
+leagues directly from its URL query parameters.
 
 ## User and League Selection
 
-- Read the user's Firebase UID from the `firebase_uid` query parameter.
-- Use that UID to select the league array from
-  `window.FIREBASE_UID_TO_LEAGUES`.
-- If the UID is missing, unmapped, or its mapping is invalid, use the fallback
-  leagues in this order: `nfl`, `mlb`, `cfb`, `nba`.
-- Do not duplicate or hardcode the full user mapping in `app.js`.
-- The retained `convert_users.py` utility converts an array of
-  `{ "firebase_uid": "...", "leagues": [...] }` records into a UID-keyed JSON
-  object in `sportsbreak_users.json`. It does not generate the JavaScript
-  wrapper; if refreshing the browser mapping, ensure the resulting
-  `sportsbreak_users.js` assigns the object to
-  `window.FIREBASE_UID_TO_LEAGUES`.
+- Read the user's Firebase UID from the `firebase_uid` query parameter for
+  analytics attribution.
+- Read favorite leagues from the comma-separated `favorite_leagues` query
+  parameter, whose entries use the `league:<code>` format.
+- Play only supported league codes (`nfl`, `mlb`, `cfb`, and `nba`), ignoring
+  other entries. If none are supported or the parameter is absent, play all
+  four in the default order: `nfl`, `mlb`, `cfb`, `nba`.
+- Do not use the UID-to-leagues mapping in `sportsbreak_users.js` to choose
+  clips.
 
 ## Audio Playback
 
@@ -55,11 +50,9 @@ script assigns `window.FIREBASE_UID_TO_LEAGUES`.
 
 ## Files and Validation
 
-- `index.html`: player markup and ordered script/style includes.
+- `index.html`: player markup and script/style includes.
 - `styles.css`: compact, responsive player styling.
 - `app.js`: date selection, league playlist, playback controls, and analytics.
-- `sportsbreak_users.js`: local UID-to-leagues mapping consumed by `app.js`.
-- `convert_users.py`: reusable input-array-to-JSON-object conversion utility.
 
 After changing JavaScript, run `node --check button/app.js` from the project
 root. After changing the conversion utility, run

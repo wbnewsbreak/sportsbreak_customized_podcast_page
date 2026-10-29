@@ -1,13 +1,23 @@
 const ANALYTICS_URL = "https://script.google.com/macros/s/AKfycbzVl1Yuy6G75C0ObZgx7aXtEcCYs8i-0P11xniruh_JKfhtIK9kdZg2FBb_LM5UqvG7Ow/exec";
 
 const DEFAULT_LEAGUES = ["nfl", "mlb", "cfb", "nba"];
+const SUPPORTED_LEAGUES = new Set(DEFAULT_LEAGUES);
 const HEARTBEAT_INTERVAL_SECONDS = 15;
 const PLAY_LABEL = "Play Your AI-generated Daily Briefing";
 const PAUSE_LABEL = "Pause";
 
 const params = new URLSearchParams(window.location.search);
 const userId = params.get("firebase_uid") || "anonymous";
-let leagues = DEFAULT_LEAGUES;
+const favoriteLeagues = params.get("favorite_leagues");
+const leagues = favoriteLeagues
+  ? [...new Set(
+      favoriteLeagues
+        .split(",")
+        .map((value) => value.trim().replace(/^league:/, "").trim())
+        .filter((league) => SUPPORTED_LEAGUES.has(league)),
+    )]
+  : [];
+const selectedLeagues = leagues.length > 0 ? leagues : DEFAULT_LEAGUES;
 const playButton = document.querySelector("#play-button");
 const status = document.querySelector("#status");
 const audio = document.querySelector("#audio");
@@ -46,7 +56,7 @@ async function postAnalytics(payload) {
 function sendAnalytics(currentTime = audio.currentTime, isComplete = false) {
   postAnalytics({
     user: userId,
-    league: leagues[currentLeagueIndex],
+    league: selectedLeagues[currentLeagueIndex],
     completionPercent: isComplete ? 100 : completionPercent(currentTime),
   });
 }
@@ -66,7 +76,7 @@ if (document.visibilityState === "visible") {
 }
 
 function loadCurrentLeague() {
-  const league = leagues[currentLeagueIndex];
+  const league = selectedLeagues[currentLeagueIndex];
   const date = episodeDate();
   audio.src = `https://archive.org/download/sportsbreak-${date}/${encodeURIComponent(league)}.mp3`;
   audio.load();
@@ -86,7 +96,7 @@ playButton.addEventListener("click", async () => {
     return;
   }
 
-  if (currentLeagueIndex >= leagues.length) {
+  if (currentLeagueIndex >= selectedLeagues.length) {
     currentLeagueIndex = 0;
     loadCurrentLeague();
   }
@@ -125,7 +135,7 @@ audio.addEventListener("ended", () => {
   sendAnalytics(audio.duration, true);
   currentLeagueIndex += 1;
 
-  if (currentLeagueIndex < leagues.length) {
+  if (currentLeagueIndex < selectedLeagues.length) {
     loadCurrentLeague();
     audio.play().catch((error) => {
       showError("Unable to play the next briefing. Please try again.");
@@ -141,18 +151,8 @@ audio.addEventListener("ended", () => {
 audio.addEventListener("error", () => {
   isPlaying = false;
   playButton.textContent = PLAY_LABEL;
-  showError(`The ${leagues[currentLeagueIndex]} briefing could not be loaded.`);
+  showError(`The ${selectedLeagues[currentLeagueIndex]} briefing could not be loaded.`);
 });
-
-const userLeagues = window.FIREBASE_UID_TO_LEAGUES;
-const configuredLeagues = userLeagues?.[userId];
-if (
-  Array.isArray(configuredLeagues) &&
-  configuredLeagues.length > 0 &&
-  configuredLeagues.every((league) => typeof league === "string")
-) {
-  leagues = configuredLeagues;
-}
 
 playButton.disabled = false;
 loadCurrentLeague();
