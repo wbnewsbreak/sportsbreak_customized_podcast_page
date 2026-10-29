@@ -10,7 +10,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from internetarchive import upload
 
-from config import EXEMPLAR_USERS
+from config import LEAGUES
 
 load_dotenv(Path(__file__).resolve().with_name(".env"))
 
@@ -24,10 +24,10 @@ def upload_mp3(
     and the uploaded filename is the league name (for example, ``nfl.mp3``).
     By default, the item date is tomorrow's UTC calendar date.
     """
-    if league not in EXEMPLAR_USERS:
+    if league not in LEAGUES:
         raise ValueError(
             "Unsupported league {!r}; expected one of: {}.".format(
-                league, ", ".join(sorted(EXEMPLAR_USERS))
+                league, ", ".join(sorted(LEAGUES))
             )
         )
 

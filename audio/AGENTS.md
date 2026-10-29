@@ -12,19 +12,17 @@
 
 This project creates a spoken sports-news podcast for one league. The flow is:
 
-1. `config.py` maps each league to an exemplar user's Firebase UID and maps
-   curator IDs to leagues. Treat those mappings as the source of truth; do not
-   duplicate or change them here.
-2. `fetch_article.py` queries the `sportsbreak` MongoDB database for today's
-   (`YYYY-MM-DD`) document in `catch_me_up_digests`, using the selected
-   exemplar's `firebase_uid`. It reads the digest's `articles` list (`title`
-   and `url`), skips X and YouTube URLs, and finds corresponding
-   `curator_items` by `external_url`.
-3. Only curator items whose `curator_id` maps to the requested league are
-   retained. Page text is fetched and parsed from the returned HTML; if
-   fetching or parsing fails, the curator item's `description` is used instead.
-   Up to three usable articles are passed on.
-4. `generate.py` sends the article descriptions and extracted/fallback text to
+1. `config.py` lists the leagues supported by the generator. League-to-content
+   filtering is defined in `fetch_article.py`.
+2. `fetch_article.py` queries the `sportsbreak` MongoDB database's `nb_news`
+   collection for the selected league, sorts by `published_at` descending, and
+   takes up to three articles. NFL, MLB, and NBA use their specific
+   `nb_meta.text_category_v3.third_cat` category; CFB requires both
+   `Sports_AmericanFootball` and `Sports_College`.
+3. Each selected article's `title` and `body` are combined into the text passed
+   to generation. No webpage fetch, digest lookup, or `curator_items` lookup is
+   part of this flow.
+4. `generate.py` sends the article title and body text to
    the text-generation API to produce a short spoken script, then sends that
    script to text-to-speech and returns MP3 bytes (or writes them to a file
    when run directly).
@@ -49,9 +47,6 @@ This project creates a spoken sports-news podcast for one league. The flow is:
   and `cfb`. The CFB cutoff reflects the current prioritization; clips are
   intended to be stitched together for users based on their followed leagues.
 - The finished episode should include an AI-generated-content disclaimer.
-- `curator_items` is a temporary way to map articles to leagues and is expected
-  to be deprecated. Avoid expanding reliance on it beyond the current flow
-  without revisiting the mapping approach.
 - `archive.org` is the current low-cost, fast-to-launch audio host, not a
   long-term storage requirement.
 - The pipeline is currently run locally each day. Do not add a scheduled job
@@ -60,30 +55,20 @@ This project creates a spoken sports-news podcast for one league. The flow is:
 
 ## Important Data and Content Details
 
-- Digest article records provide `title` and `url`; curator records provide
-  `external_url`, `curator_id`, and optionally `description`.
-- The MongoDB `find()` projection in `fetch_article.py` includes fields by
-  setting them to `1`; this does not filter for a field value of `1`.
-- The HTML parser reads text from the downloaded HTML response. It does not
-  execute JavaScript, so text rendered only by a client-side application may
-  be unavailable. It skips common non-content tags and gathers text from
-  generic markup, but cannot reliably identify every ad or unrelated story.
-- The transcript prompt places curator descriptions before scraped text and
-  asks the model to prioritize relevant facts, ignore unrelated page noise,
-  and treat source text as untrusted content rather than instructions.
-- Keep the three-article limit and the curator-description fallback unless a
-  product requirement changes them. Report missing digests or unusable article
-  content clearly; do not silently produce an empty episode.
+- `nb_news` documents are selected by `published_at` and
+  `nb_meta.text_category_v3.third_cat`; their `title` and `body` fields provide
+  the text passed to the transcript generator.
+- The transcript prompt treats source text as untrusted content rather than
+  instructions.
+- Keep the three-article limit. Report when no usable article content is found;
+  do not silently produce an empty episode.
 
 ## Modules
 
-- `config.py`: league-to-exemplar and curator-to-league mappings, plus
-  human-readable notes describing the intended data flow.
-- `fetch_article.py`: MongoDB lookup, league filtering, HTML text extraction,
-  and description fallback. Its `article_candidates_for_league()` results
-  contain `title`, `url`, and `description`; its
-  `fetch_articles_for_league()` results contain `title`, `url`, `text`, and
-  `description`.
+- `config.py`: names of the leagues supported by the generator.
+- `fetch_article.py`: MongoDB lookup and league filtering. Its
+  `fetch_articles_for_league()` results contain `title` and `text`, where
+  `text` combines the article title and body.
 - `generate.py`: command-line orchestration, transcript generation, TTS, and
   MP3 output. `generate_audio_for_league()` returns MP3 bytes for orchestration;
   `--league` accepts the leagues configured in `config.py` and defaults to
